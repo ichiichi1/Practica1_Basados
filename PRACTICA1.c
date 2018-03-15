@@ -66,7 +66,8 @@ int main(void) {
     BOARD_InitDebugConsole();
 
     UART_START();
-    UART_MENU_PRINCIPAL();
+    UART_MENU(Lectura_I2C_1);
+
 
     xTaskCreate(Menu_principal,       "MENU_PRINC",      configMINIMAL_STACK_SIZE, NULL, configMAX_PRIORITIES-1, NULL);
     xTaskCreate(Leer_memoria_i2c,     "LEER_MEM",        configMINIMAL_STACK_SIZE, NULL, configMAX_PRIORITIES-1, NULL);

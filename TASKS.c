@@ -5,13 +5,13 @@
  *      Author: Lenovo
  */
 
-
+#include "UART.h"
 
 void Menu_principal(void *arg)
 {
 	for(;;)
 	{
-
+		UART_MENU_PRINCIPAL();
 	}
 }
 
@@ -86,4 +86,16 @@ void ECO(void *arg)
 
 	}
 }
+
+/*
+data_to send = data;
+masterXfer.salveAdress = MEME_SALVE_DIR;
+masterXfer.DIRECTION = kI2C_Write;
+masterXfer.subadress = address;
+masterXfer.subadresssize = 2;
+masterXfer.data = &data_to_send;
+masterXfer.datasize = 1;
+masterXfer.flags = kI2C_TransferDefault Flag;
+while() */
+
 

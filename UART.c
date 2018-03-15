@@ -7,18 +7,16 @@
 
 #include "board.h"
 #include "fsl_uart.h"
+#include <stdio.h>
 
 #include "pin_mux.h"
 #include "clock_config.h"
+#include "UART.h"
 /*******************************************************************************
  * Definitions
  ******************************************************************************/
 /* UART instance and clock */
-#define DEMO_UART UART0
-#define DEMO_UART_CLKSRC UART0_CLK_SRC
-#define DEMO_UART_CLK_FREQ CLOCK_GetFreq(UART0_CLK_SRC)
-#define DEMO_UART_IRQn UART0_RX_TX_IRQn
-#define DEMO_UART_IRQHandler UART0_RX_TX_IRQHandler
+
 
 /*! @brief Ring buffer size (Unit: Byte). */
 #define DEMO_RING_BUFFER_SIZE 16
@@ -33,6 +31,9 @@
  * Variables
  ******************************************************************************/
 
+////////////////////////////////////////////////////////////////////////////////
+/////////////////////// UTILIZADAS EN MENÚ PRINCIPAL ///////////////////////////
+
 uint8_t g_memorias[] =
 " 1-Leer memoria I2C\r\n 2-Escribir memoria I2C\r\n";
 
@@ -41,6 +42,41 @@ uint8_t g_reloj[] =
 
 uint8_t g_ECO[] =
 " 8-Comunicacion con terminal 2\r\n 9-ECO en pantalla LCD\r\n";
+
+////////////////////////////////////////////////////////////////////////////////
+///////////////////// UTILIZADAS EN I2C ////////////////////////////////////////
+
+uint8_t Leer_I2C_1[] = "Direccion de lectura:\r\n";
+uint8_t Leer_I2C_2[] = "Longitud en bytes: \r\n";
+uint8_t Leer_I2C_3[] = "Contenido: \r\n";
+uint8_t Leer_I2C_4[] = "Presione una tecla para continuar \r\n";
+
+uint8_t Escribir_I2C_1[] = "Direccion de escritura:\r\n";
+uint8_t Escribir_I2C_2[] = "Texto a guardar\r\n";
+uint8_t Escribir_I2C_3[] = "Su texto ha sido guardado";
+
+////////////////////////////////////////////////////////////////////////////////
+///////////////////// UTILIZADAS EN RTC ////////////////////////////////////////
+
+uint8_t Establecer_hora_1[] = "Establecer hora en hh/mm/ss:'r\n";
+uint8_t Establecer_hora_2[] = "La hora ha sido cambiada";
+
+uint8_t Establecer_fecha_1[] = "Establecer fecha en dd/mm/aa:\r\n";
+uint8_t Establecer_fecha_2[] = "La hora ha sido cambiada";
+
+uint8_t Formato_hr_1[] = "El formato actual es:";
+uint8_t Formato_hr_2[] = "Desea cambiar el formato";
+uint8_t Formato_hr_3[] = "El formato ha sido cambiado ...";
+
+uint8_t Leer_hora_1[] = "La hora actual es:";
+
+uint8_t Leer_fecha_1[] = "La fecha actual es:";
+
+////////////////////////////////////////////////////////////////////////////////
+///////////////////// UTILIZADAS EN ECO Y CHAT /////////////////////////////////
+
+
+
 /*
   Ring buffer for data input and output, in this example, input data are saved
   to ring buffer in IRQ handler. The main function polls the ring buffer status,
@@ -87,6 +123,7 @@ void UART_START(void)
 
 	 UART_EnableInterrupts(DEMO_UART, kUART_RxDataRegFullInterruptEnable | kUART_RxOverrunInterruptEnable);
 	 EnableIRQ(DEMO_UART_IRQn);
+	 //falta setear la prioridad
 }
 
 void UART_MENU_PRINCIPAL()
@@ -94,6 +131,63 @@ void UART_MENU_PRINCIPAL()
 	UART_WriteBlocking(DEMO_UART, g_memorias, sizeof(g_memorias) / sizeof(g_memorias[0]));
 	UART_WriteBlocking(DEMO_UART, g_reloj, sizeof(g_reloj) / sizeof(g_reloj[0]));
 	UART_WriteBlocking(DEMO_UART, g_ECO, sizeof(g_ECO) / sizeof(g_ECO[0]));
+}
+
+void UART_MENU(values_t valor)
+{
+	switch(valor)
+	{
+	case Lectura_I2C_1:
+	UART_WriteBlocking(DEMO_UART, Leer_I2C_2, sizeof(Leer_I2C_2) / sizeof(Leer_I2C_2[0]));
+	break;
+	case Lectura_I2C_2:
+	UART_WriteBlocking(DEMO_UART, Leer_I2C_2, sizeof(Leer_I2C_2) / sizeof(Leer_I2C_2[0]));
+	break;
+	case Lectura_I2C_3:
+	UART_WriteBlocking(DEMO_UART, Leer_I2C_3, sizeof(Leer_I2C_3) / sizeof(Leer_I2C_3[0]));
+	break;
+	case Lectura_I2C_4:
+	UART_WriteBlocking(DEMO_UART, Leer_I2C_4, sizeof(Leer_I2C_4) / sizeof(Leer_I2C_4[0]));
+	break;
+	case Escritura_I2C_1:
+	UART_WriteBlocking(DEMO_UART, Escribir_I2C_1, sizeof(Escribir_I2C_1) / sizeof(Escribir_I2C_1[0]));
+	break;
+	case Escritura_I2C_2:
+	UART_WriteBlocking(DEMO_UART, Escribir_I2C_1, sizeof(Escribir_I2C_1) / sizeof(Escribir_I2C_1[0]));
+	break;
+	case Escritura_I2C_3:
+	UART_WriteBlocking(DEMO_UART, Escribir_I2C_1, sizeof(Escribir_I2C_1) / sizeof(Escribir_I2C_1[0]));
+	break;
+	case Set_hr1:
+	UART_WriteBlocking(DEMO_UART, Establecer_hora_1, sizeof(Establecer_hora_1) / sizeof(Establecer_hora_1[0]));
+	break;
+	case Set_hr2:
+	UART_WriteBlocking(DEMO_UART, Establecer_hora_2, sizeof(Establecer_hora_2) / sizeof(Establecer_hora_2[0]));
+	break;
+	case Set_date1:
+	UART_WriteBlocking(DEMO_UART, Establecer_fecha_1, sizeof(Establecer_fecha_1) / sizeof(Establecer_fecha_1[0]));
+	break;
+	case Set_date2:
+	UART_WriteBlocking(DEMO_UART, Establecer_fecha_2, sizeof(Establecer_fecha_2) / sizeof(Establecer_fecha_2[0]));
+	break;
+	case Set_format1:
+	UART_WriteBlocking(DEMO_UART, Formato_hr_1, sizeof(Formato_hr_1) / sizeof(Formato_hr_1[0]));
+	break;
+	case Set_format2:
+	UART_WriteBlocking(DEMO_UART, Formato_hr_2, sizeof(Formato_hr_2) / sizeof(Formato_hr_2[0]));
+	break;
+	case Set_format3:
+	UART_WriteBlocking(DEMO_UART, Formato_hr_3, sizeof(Formato_hr_3) / sizeof(Formato_hr_3[0]));
+	break;
+	case Lectura_hr:
+	UART_WriteBlocking(DEMO_UART, Leer_hora_1, sizeof(Leer_hora_1) / sizeof(Leer_hora_1[0]));
+	break;
+	case Lectura_fecha:
+	UART_WriteBlocking(DEMO_UART, Leer_fecha_1, sizeof(Leer_fecha_1) / sizeof(Leer_fecha_1[0]));
+	break;
+	default:
+	break;
+	}
 }
 
 void UART_RECIVE(void)
