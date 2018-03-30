@@ -7,8 +7,10 @@
 
 #include "board.h"
 #include "fsl_uart.h"
-#include <stdio.h>
+#include "fsl_port.h"
+#include "fsl_gpio.h"
 
+#include <stdio.h>
 #include "pin_mux.h"
 #include "clock_config.h"
 #include "UART.h"
@@ -18,31 +20,17 @@
 /* UART instance and clock */
 
 
-/*! @brief Ring buffer size (Unit: Byte). */
-#define DEMO_RING_BUFFER_SIZE 16
-
-/*! @brief Ring buffer to save received data. */
-
-/*******************************************************************************
- * Prototypes
- ******************************************************************************/
-
-/*******************************************************************************
- * Variables
- ******************************************************************************/
-
 ////////////////////////////////////////////////////////////////////////////////
 /////////////////////// UTILIZADAS EN MENÚ PRINCIPAL ///////////////////////////
 
-uint8_t g_memorias[] =
-" 1-Leer memoria I2C\r\n 2-Escribir memoria I2C\r\n";
-
-uint8_t g_reloj[] =
-" 3-Establecer hora\r\n 4-Establecer Fecha\r\n 5-Formato de hora\r\n 6-Leer hora\r\n 7-Leer fecha\r\n";
-
-uint8_t g_ECO[] =
-" 8-Comunicacion con terminal 2\r\n 9-ECO en pantalla LCD\r\n";
-
+uint8_t menu_princ[] =
+              " 1-Leer memoria I2C\r\n "
+              " 2-Escribir memoria I2C\r\n"
+              " 3-Establecer hora\r\n  "
+              " 4-Establecer Fecha\r\n "
+              " 5-Formato de hora\r\n "
+              " 6-Leer hora\r\n "
+              " 7-Leer fecha\r\n";
 ////////////////////////////////////////////////////////////////////////////////
 ///////////////////// UTILIZADAS EN I2C ////////////////////////////////////////
 
@@ -72,65 +60,143 @@ uint8_t Leer_hora_1[] = "La hora actual es:";
 
 uint8_t Leer_fecha_1[] = "La fecha actual es:";
 
-////////////////////////////////////////////////////////////////////////////////
-///////////////////// UTILIZADAS EN ECO Y CHAT /////////////////////////////////
 
 
 
-/*
-  Ring buffer for data input and output, in this example, input data are saved
-  to ring buffer in IRQ handler. The main function polls the ring buffer status,
-  if there are new data, then send them out.
-  Ring buffer full: (((rxIndex + 1) % DEMO_RING_BUFFER_SIZE) == txIndex)
-  Ring buffer empty: (rxIndex == txIndex)
-*/
-uint8_t demoRingBuffer[DEMO_RING_BUFFER_SIZE];
-volatile uint16_t txIndex; /* Index of the data to send out. */
-volatile uint16_t rxIndex; /* Index of the memory to save new arrived data. */
 
-/*******************************************************************************
- * Code
- ******************************************************************************/
+uint8_t g_tipString[] =
+    "Uart interrupt example\r\nBoard receives 8 characters then sends them out\r\nNow please input:\r\n";
 
-void DEMO_UART_IRQHandler(void)
+uint8_t g_txBuffer[ECHO_BUFFER_LENGTH] = {0};
+uint8_t g_rxBuffer[ECHO_BUFFER_LENGTH] = {0};
+volatile bool rxBufferEmpty = true;
+volatile bool txBufferFull = false;
+volatile bool txOnGoing = false;
+volatile bool rxOnGoing = false;
+
+	uart_config_t config;
+    uart_config_t config1;
+
+    uart_transfer_t xfer;
+    uart_transfer_t sendXfer;
+    uart_transfer_t receiveXfer;
+    uart_handle_t g_uartHandle;
+
+extern void UART1_DriverIRQHandler(void);
+extern void UART0_DriverIRQHandler(void);
+
+void UART_UserCallback(UART_Type *base, uart_handle_t *handle, status_t status, void *userData)
 {
-    uint8_t data;
+    userData = userData;
 
-    /* If new data arrived. */
-    if ((kUART_RxDataRegFullFlag | kUART_RxOverrunFlag) & UART_GetStatusFlags(DEMO_UART))
+    if (kStatus_UART_TxIdle == status)
     {
-        data = UART_ReadByte(DEMO_UART);
+        txBufferFull = false;
+        txOnGoing = false;
+    }
 
-        /* If ring buffer is not full, add data to ring buffer. */
-        if (((rxIndex + 1) % DEMO_RING_BUFFER_SIZE) != txIndex)
-        {
-            demoRingBuffer[rxIndex] = data;
-            rxIndex++;
-            rxIndex %= DEMO_RING_BUFFER_SIZE;
-        }
+    if (kStatus_UART_RxIdle == status)
+    {
+        rxBufferEmpty = false;
+        rxOnGoing = false;
     }
 }
 
 void UART_START(void)
 {
-	 uart_config_t config;
-	 UART_GetDefaultConfig(&config);
-	 config.baudRate_Bps = BOARD_DEBUG_UART_BAUDRATE;
-	 config.enableTx = true;
-	 config.enableRx = true;
 
-	 UART_Init(DEMO_UART, &config, DEMO_UART_CLK_FREQ);
 
-	 UART_EnableInterrupts(DEMO_UART, kUART_RxDataRegFullInterruptEnable | kUART_RxOverrunInterruptEnable);
-	 EnableIRQ(DEMO_UART_IRQn);
-	 //falta setear la prioridad
+    CLOCK_EnableClock(kCLOCK_PortC);
+        port_pin_config_t config_UART1 =
+           	{ kPORT_PullDisable, kPORT_SlowSlewRate, kPORT_PassiveFilterDisable,
+           			kPORT_OpenDrainDisable, kPORT_LowDriveStrength, kPORT_MuxAlt3,
+           			kPORT_UnlockRegister, };
+
+           	PORT_SetPinConfig(PORTC, 3, &config_UART1);
+           	PORT_SetPinConfig(PORTC, 4, &config_UART1);
+
+           	    /*Inicializamos la UART1 y les pasamos parametros*/
+
+           	    UART_GetDefaultConfig(&config1);
+           	    config1.baudRate_Bps = 9600; //BOARD_DEBUG_UART_BAUDRATE
+           	    config1.enableTx = true;
+           	    config1.enableRx = true;
+
+           	    UART_Init(DEMO_UART1, &config1, DEMO_UART1_CLK_FREQ);
+           	    UART_TransferCreateHandle(DEMO_UART1, &g_uartHandle, UART_UserCallback, NULL);
+
+           	    /*Inicializamos la UART0 y le pasamos los parametros*/
+
+           	    UART_GetDefaultConfig(&config);
+				config.baudRate_Bps = BOARD_DEBUG_UART_BAUDRATE;
+				config.enableTx = true;
+				config.enableRx = true;
+
+				UART_Init(DEMO_UART, &config, DEMO_UART_CLK_FREQ);
+				UART_TransferCreateHandle(DEMO_UART, &g_uartHandle, UART_UserCallback, NULL);
+
 }
 
 void UART_MENU_PRINCIPAL()
 {
-	UART_WriteBlocking(DEMO_UART, g_memorias, sizeof(g_memorias) / sizeof(g_memorias[0]));
-	UART_WriteBlocking(DEMO_UART, g_reloj, sizeof(g_reloj) / sizeof(g_reloj[0]));
-	UART_WriteBlocking(DEMO_UART, g_ECO, sizeof(g_ECO) / sizeof(g_ECO[0]));
+	xfer.data = menu_princ;
+	xfer.dataSize = sizeof(menu_princ) - 1;
+	UART_SEND();
+}
+
+void UART_SEND()
+{
+	/* Send g_tipString out. */
+
+	    txOnGoing = true;
+
+	    UART_TransferSendNonBlocking(DEMO_UART, &g_uartHandle, &xfer);
+
+	    while (txOnGoing)
+	    	    {
+	    	    }
+
+	    UART_TransferSendNonBlocking(DEMO_UART1, &g_uartHandle, &xfer);
+
+	    /* Wait send finished */
+	    while (txOnGoing)
+				{
+				}
+
+}
+
+void UART_RECIVE(void)
+{
+/* Start to echo. */
+    sendXfer.data = g_txBuffer;
+    sendXfer.dataSize = ECHO_BUFFER_LENGTH;
+    receiveXfer.data = g_rxBuffer;
+    receiveXfer.dataSize = ECHO_BUFFER_LENGTH;
+
+    while (1)
+    {
+    	 /* If RX is idle and g_rxBuffer is empty, start to read data to g_rxBuffer. */
+    	            if ((!rxOnGoing) && rxBufferEmpty)
+    	            {
+    	                rxOnGoing = true;
+    	                UART_TransferReceiveNonBlocking(DEMO_UART, &g_uartHandle, &receiveXfer, NULL);
+    	            }
+
+    	            /* If TX is idle and g_txBuffer is full, start to send data. */
+    	            if ((!txOnGoing) && txBufferFull)
+    	            {
+    	                txOnGoing = true;
+    	                UART_TransferSendNonBlocking(DEMO_UART, &g_uartHandle, &sendXfer);
+    	            }
+
+    	            /* If g_txBuffer is empty and g_rxBuffer is full, copy g_rxBuffer to g_txBuffer. */
+    	            if ((!rxBufferEmpty) && (!txBufferFull))
+    	            {
+    	                memcpy(g_txBuffer, g_rxBuffer, ECHO_BUFFER_LENGTH);
+    	                rxBufferEmpty = true;
+    	                txBufferFull = true;
+    	            }
+    }
 }
 
 void UART_MENU(values_t valor)
@@ -138,7 +204,9 @@ void UART_MENU(values_t valor)
 	switch(valor)
 	{
 	case Lectura_I2C_1:
-	UART_WriteBlocking(DEMO_UART, Leer_I2C_2, sizeof(Leer_I2C_2) / sizeof(Leer_I2C_2[0]));
+	xfer.data = Leer_I2C_2;
+    xfer.dataSize = sizeof(Leer_I2C_2) - 1;
+	UART_SEND();
 	break;
 	case Lectura_I2C_2:
 	UART_WriteBlocking(DEMO_UART, Leer_I2C_2, sizeof(Leer_I2C_2) / sizeof(Leer_I2C_2[0]));
@@ -188,20 +256,4 @@ void UART_MENU(values_t valor)
 	default:
 	break;
 	}
-}
-
-void UART_RECIVE(void)
-{
-
-
-	    while (1)
-	    {
-	        /* Send data only when UART TX register is empty and ring buffer has data to send out. */
-	        while ((kUART_TxDataRegEmptyFlag & UART_GetStatusFlags(DEMO_UART)) && (rxIndex != txIndex))
-	        {
-	            UART_WriteByte(DEMO_UART, demoRingBuffer[txIndex]);
-	            txIndex++;
-	            txIndex %= DEMO_RING_BUFFER_SIZE;
-	        }
-	    }
 }

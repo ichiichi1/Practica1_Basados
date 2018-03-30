@@ -12,11 +12,15 @@
 #include "board.h"
 #include "fsl_uart.h"
 
+#define DEMO_UART1 UART1
+#define DEMO_UART1_CLKSRC UART1_CLK_SRC
+#define DEMO_UART1_CLK_FREQ CLOCK_GetFreq(UART1_CLK_SRC)
+
+#define ECHO_BUFFER_LENGTH 8
+
 #define DEMO_UART UART0
 #define DEMO_UART_CLKSRC UART0_CLK_SRC
 #define DEMO_UART_CLK_FREQ CLOCK_GetFreq(UART0_CLK_SRC)
-#define DEMO_UART_IRQn UART0_RX_TX_IRQn
-#define DEMO_UART_IRQHandler UART0_RX_TX_IRQHandler
 
 typedef enum
 {
@@ -42,13 +46,12 @@ typedef enum
 
 
 
-
-
-void DEMO_UART_IRQHandler(void);
+void UART_UserCallback(UART_Type *base, uart_handle_t *handle, status_t status, void *userData);
 void UART_START(void);
+void UART_SEND(void);
 void UART_RECIVE(void);
 void UART_MENU_PRINCIPAL();
 void UART_MENU(values_t);
-void UART_PRINT(uint8_t print);
+
 
 #endif /* UART_H_ */
