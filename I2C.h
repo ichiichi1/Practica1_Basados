@@ -1,26 +1,25 @@
 /*
  * I2C.h
  *
- *  Created on: Mar 12, 2018
+ *  Created on: Apr 1, 2018
  *      Author: Lenovo
  */
 
 #ifndef I2C_H_
 #define I2C_H_
 
-//static void i2c_master_callback(I2C_Type *base, i2c_master_handle_t *handle,status_t status, void * userData);
+#define SEC 		0x02
+#define MINU 		0x03
+#define HR  		0x04
+#define FECHA1  	0x05
+#define FECHA2  	0x06
+#define FORMATO     0x04
 
- void I2C_START(void);
 
- static void i2c_release_bus_delay(void);
+void I2C_INIT(void);
+void I2C_READ(void);
+void I2C_WRITE(void);
 
- void i2c_ReleaseBus();
 
- void I2C_READ_MEM(void);
 
- void I2C_WRITE_MEM(void);
-
- void I2C_READ_RTC(void);
-
- void I2C_WRITE_RTC(void);
 #endif /* I2C_H_ */

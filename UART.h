@@ -42,15 +42,26 @@ typedef enum
  Lectura_fecha
 }values_t;
 
-
+typedef enum
+{
+ Memory_type,
+ RTC_type,
+ Info_type,
+ Menu_type
+}Data_type_t;
 
 
 
 void UART_UserCallback(UART_Type *base, uart_handle_t *handle, status_t status, void *userData);
+
 void UART_START(void);
+
 void UART_SEND(void);
-void UART_RECIVE(void);
+
+uint8_t UART_RECIVE(uint8_t);
+
 void UART_MENU_PRINCIPAL();
+
 void UART_MENU(values_t);
 
 

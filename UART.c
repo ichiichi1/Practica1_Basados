@@ -22,6 +22,7 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 /////////////////////// UTILIZADAS EN MENÚ PRINCIPAL ///////////////////////////
+uint8_t borrar[] = "\023[2J";
 
 uint8_t menu_princ[] =
               " 1-Leer memoria I2C\r\n "
@@ -60,15 +61,13 @@ uint8_t Leer_hora_1[] = "La hora actual es:";
 
 uint8_t Leer_fecha_1[] = "La fecha actual es:";
 
-
-
-
-
-uint8_t g_tipString[] =
-    "Uart interrupt example\r\nBoard receives 8 characters then sends them out\r\nNow please input:\r\n";
+uint8_t Salir_recepcion_datos;
 
 uint8_t g_txBuffer[ECHO_BUFFER_LENGTH] = {0};
 uint8_t g_rxBuffer[ECHO_BUFFER_LENGTH] = {0};
+
+uint8_t RBuffer[50] = {0};
+
 volatile bool rxBufferEmpty = true;
 volatile bool txBufferFull = false;
 volatile bool txOnGoing = false;
@@ -150,32 +149,36 @@ void UART_SEND()
 
 	    txOnGoing = true;
 
+	    UART_TransferSendNonBlocking(DEMO_UART1, &g_uartHandle, &xfer);
+	    while (txOnGoing)
+				{
+				}
+
+	    txOnGoing = true;
+
 	    UART_TransferSendNonBlocking(DEMO_UART, &g_uartHandle, &xfer);
 
 	    while (txOnGoing)
 	    	    {
 	    	    }
-
-	    UART_TransferSendNonBlocking(DEMO_UART1, &g_uartHandle, &xfer);
-
-	    /* Wait send finished */
-	    while (txOnGoing)
-				{
-				}
-
 }
 
-void UART_RECIVE(void)
+uint8_t UART_RECIVE(Data_type_t Tipo)
 {
 /* Start to echo. */
     sendXfer.data = g_txBuffer;
-    sendXfer.dataSize = ECHO_BUFFER_LENGTH;
+    sendXfer.dataSize = 1;
     receiveXfer.data = g_rxBuffer;
-    receiveXfer.dataSize = ECHO_BUFFER_LENGTH;
+    receiveXfer.dataSize = 1;
+    Salir_recepcion_datos = 0;
+    uint8_t i = 0;
+    //rxOnGoing = true;
 
-    while (1)
+while(RBuffer[(i-1)] != 13U)
+{
+    while(Salir_recepcion_datos != 1)
     {
-    	 /* If RX is idle and g_rxBuffer is empty, start to read data to g_rxBuffer. */
+    	            /* If RX is idle and g_rxBuffer is empty, start to read data to g_rxBuffer. */
     	            if ((!rxOnGoing) && rxBufferEmpty)
     	            {
     	                rxOnGoing = true;
@@ -187,6 +190,7 @@ void UART_RECIVE(void)
     	            {
     	                txOnGoing = true;
     	                UART_TransferSendNonBlocking(DEMO_UART, &g_uartHandle, &sendXfer);
+    	                Salir_recepcion_datos = 1;
     	            }
 
     	            /* If g_txBuffer is empty and g_rxBuffer is full, copy g_rxBuffer to g_txBuffer. */
@@ -196,7 +200,25 @@ void UART_RECIVE(void)
     	                rxBufferEmpty = true;
     	                txBufferFull = true;
     	            }
+
     }
+    RBuffer[i] = g_txBuffer[0];
+    i++;
+    Salir_recepcion_datos = 0;
+  }
+  switch(Tipo)
+  {
+  case Memory_type:
+  break;
+  case RTC_type:
+  break;
+  case Info_type:
+  break;
+  case Menu_type:
+  break;
+  }
+
+return g_rxBuffer;
 }
 
 void UART_MENU(values_t valor)
@@ -204,27 +226,39 @@ void UART_MENU(values_t valor)
 	switch(valor)
 	{
 	case Lectura_I2C_1:
-	xfer.data = Leer_I2C_2;
-    xfer.dataSize = sizeof(Leer_I2C_2) - 1;
+	xfer.data = Leer_I2C_1;
+    xfer.dataSize = sizeof(Leer_I2C_1) - 1;
 	UART_SEND();
 	break;
 	case Lectura_I2C_2:
-	UART_WriteBlocking(DEMO_UART, Leer_I2C_2, sizeof(Leer_I2C_2) / sizeof(Leer_I2C_2[0]));
+	xfer.data = Leer_I2C_2;
+	xfer.dataSize = sizeof(Leer_I2C_2) - 1;
+	UART_SEND();
 	break;
 	case Lectura_I2C_3:
-	UART_WriteBlocking(DEMO_UART, Leer_I2C_3, sizeof(Leer_I2C_3) / sizeof(Leer_I2C_3[0]));
+	xfer.data = Leer_I2C_3;
+	xfer.dataSize = sizeof(Leer_I2C_3) - 1;
+	UART_SEND();
 	break;
 	case Lectura_I2C_4:
-	UART_WriteBlocking(DEMO_UART, Leer_I2C_4, sizeof(Leer_I2C_4) / sizeof(Leer_I2C_4[0]));
+	xfer.data = Leer_I2C_4;
+	xfer.dataSize = sizeof(Leer_I2C_4) - 1;
+	UART_SEND();
 	break;
 	case Escritura_I2C_1:
-	UART_WriteBlocking(DEMO_UART, Escribir_I2C_1, sizeof(Escribir_I2C_1) / sizeof(Escribir_I2C_1[0]));
+	xfer.data = Escribir_I2C_1;
+	xfer.dataSize = sizeof(Escribir_I2C_1) - 1;
+	UART_SEND();
 	break;
 	case Escritura_I2C_2:
-	UART_WriteBlocking(DEMO_UART, Escribir_I2C_1, sizeof(Escribir_I2C_1) / sizeof(Escribir_I2C_1[0]));
+	xfer.data = Escribir_I2C_2;
+	xfer.dataSize = sizeof(Escribir_I2C_2) - 1;
+	UART_SEND();
 	break;
 	case Escritura_I2C_3:
-	UART_WriteBlocking(DEMO_UART, Escribir_I2C_1, sizeof(Escribir_I2C_1) / sizeof(Escribir_I2C_1[0]));
+	xfer.data = Escribir_I2C_3;
+	xfer.dataSize = sizeof(Escribir_I2C_3) - 1;
+	UART_SEND();
 	break;
 	case Set_hr1:
 	UART_WriteBlocking(DEMO_UART, Establecer_hora_1, sizeof(Establecer_hora_1) / sizeof(Establecer_hora_1[0]));
