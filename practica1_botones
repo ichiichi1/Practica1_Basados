@@ -1,0 +1,170 @@
+#include <stdio.h>
+#include "board.h"
+#include "peripherals.h"
+#include "pin_mux.h"
+#include "clock_config.h"
+#include "MK64F12.h"
+#include "fsl_debug_console.h"
+#include "fsl_gpio.h"
+#include "fsl_port.h"
+
+/* TODO: insert other include files here. */
+
+/* TODO: insert other definitions and declarations here. */
+
+/*
+ * @brief   Application entry point.
+ */
+
+struct {
+	uint8_t flag_PTC2 : 1;
+	uint8_t flag_PTA2 : 1;
+	uint8_t flag_PTB23 : 1;
+	uint8_t flag_PTA1 : 1;
+	uint8_t flag_PTB9 : 1;
+	uint8_t flag_PTC17 : 1;
+}flags_buttoms_t;
+
+
+void PORTA_IRQHandler()
+{
+	if(0 == GPIO_PinRead(GPIOA, 2))
+	{
+		PORT_ClearPinsInterruptFlags(PORTA, 1<<2);
+		flags_buttoms_t.flag_PTA2 = 0;
+	}
+	else if(0 == GPIO_PinRead(GPIOA, 1))
+	{
+		PORT_ClearPinsInterruptFlags(PORTA, 1<<1);
+		flags_buttoms_t.flag_PTA1 = 0;
+	}
+	else
+	{
+		flags_buttoms_t.flag_PTA2 = 1;
+		flags_buttoms_t.flag_PTA1 = 1;
+	}
+
+}
+
+void PORTB_IRQHandler()
+{
+	if(0 == GPIO_PinRead(GPIOB, 9))
+	{
+		PORT_ClearPinsInterruptFlags(PORTB, 1<<9);
+		flags_buttoms_t.flag_PTB9 = 0;
+	}
+	else if(0 == GPIO_PinRead(GPIOB, 23))
+	{
+		PORT_ClearPinsInterruptFlags(PORTB, 1<<23);
+		flags_buttoms_t.flag_PTB23 = 0;
+	}
+	else
+	{
+		flags_buttoms_t.flag_PTB9 = 1;
+		flags_buttoms_t.flag_PTB23 = 1;
+	}
+}
+
+void PORTC_IRQHandler()
+{
+
+	if(0 == GPIO_PinRead(GPIOC, 2))
+	{
+		PORT_ClearPinsInterruptFlags(PORTC, 1<<2);
+		flags_buttoms_t.flag_PTC2 = 0;
+	}
+	else if(0 == GPIO_PinRead(GPIOC, 17))
+	{
+		PORT_ClearPinsInterruptFlags(PORTC, 1<<17);
+		flags_buttoms_t.flag_PTC17 = 0;
+	}
+	else
+	{
+		flags_buttoms_t.flag_PTC2 = 1;
+		flags_buttoms_t.flag_PTC17 = 1;
+	}
+}
+
+int main(void) {
+
+  	/* Init board hardware. */
+    BOARD_InitBootPins();
+    BOARD_InitBootClocks();
+    BOARD_InitBootPeripherals();
+  	/* Init FSL debug console. */
+    BOARD_InitDebugConsole();
+
+    CLOCK_EnableClock(kCLOCK_PortC);
+    CLOCK_EnableClock(kCLOCK_PortA);
+    CLOCK_EnableClock(kCLOCK_PortB);
+
+    port_pin_config_t config_sw =
+    	{ kPORT_PullDisable, kPORT_SlowSlewRate, kPORT_PassiveFilterDisable,
+    			kPORT_OpenDrainDisable, kPORT_LowDriveStrength, kPORT_MuxAsGpio,
+    			kPORT_UnlockRegister, };
+
+    PORT_SetPinInterruptConfig(PORTC, 2, kPORT_InterruptFallingEdge);
+    PORT_SetPinInterruptConfig(PORTA, 2, kPORT_InterruptFallingEdge);
+    PORT_SetPinInterruptConfig(PORTB, 23, kPORT_InterruptFallingEdge);
+    PORT_SetPinInterruptConfig(PORTA, 1, kPORT_InterruptFallingEdge);
+    PORT_SetPinInterruptConfig(PORTB, 9, kPORT_InterruptFallingEdge);
+    PORT_SetPinInterruptConfig(PORTC, 17, kPORT_InterruptFallingEdge);
+
+    PORT_SetPinConfig(PORTC, 2, &config_sw);
+    PORT_SetPinConfig(PORTA, 2, &config_sw);
+    PORT_SetPinConfig(PORTB, 23, &config_sw);
+    PORT_SetPinConfig(PORTA, 1, &config_sw);
+    PORT_SetPinConfig(PORTB, 9, &config_sw);
+    PORT_SetPinConfig(PORTC, 17, &config_sw);
+
+    gpio_pin_config_t SW_config_gpio =
+    	{ kGPIO_DigitalInput, 1 };
+
+    GPIO_PinInit(GPIOC, 2, &SW_config_gpio);
+    GPIO_PinInit(GPIOA, 2, &SW_config_gpio);
+    GPIO_PinInit(GPIOB, 23, &SW_config_gpio);
+    GPIO_PinInit(GPIOA, 1, &SW_config_gpio);
+    GPIO_PinInit(GPIOB, 9, &SW_config_gpio);
+    GPIO_PinInit(GPIOC, 17, &SW_config_gpio);
+
+    NVIC_EnableIRQ(PORTA_IRQn);
+    NVIC_EnableIRQ(PORTC_IRQn);
+    NVIC_EnableIRQ(PORTB_IRQn);
+
+    NVIC_SetPriority(PORTA_IRQn, 1);
+    NVIC_SetPriority(PORTC_IRQn, 1);
+    NVIC_SetPriority(PORTB_IRQn, 1);
+
+    while(1)
+    {
+    	if(0 == flags_buttoms_t.flag_PTC2)
+    	{
+    		PRINTF("BOTON 1 /n");
+    	}
+    	else if(0 == flags_buttoms_t.flag_PTA2)
+    	{
+    		PRINTF("BOTON 2 /n");
+    	}
+    	else if(0 == flags_buttoms_t.flag_PTB23 )
+    	{
+    		PRINTF("BOTON 3 /n");
+    	}
+    	else if(0 == flags_buttoms_t.flag_PTA1)
+    	{
+    		PRINTF("BOTON 4 /n");
+    	}
+    	else if(0 == flags_buttoms_t.flag_PTB9)
+    	{
+    		PRINTF("BOTON 5 /n");
+    	}
+    	else if(0 == flags_buttoms_t.flag_PTC17)
+    	{
+    		PRINTF("BOTON 6 /n");
+    	}
+    	else
+    	{
+    		PRINTF("SIN PRESIONAR BOTON /n");
+    	}
+    }
+    return 0 ;
+}
